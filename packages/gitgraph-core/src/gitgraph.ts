@@ -544,9 +544,35 @@ export class GitgraphCore<TNode = SVGElement> {
     index: number,
     commits: Array<Commit<TNode>>,
   ): Map<Branch<TNode>, InternalCoordinate[]> {
-    const branch = this.branches.get(
+    let branch = this.branches.get(
       (commit.branches as Array<Branch["name"]>)[0],
-    ) as Branch<TNode>;
+    );
+
+    // TODO: rename and move to commit responsibility maybe?
+    const getParentBranch = (aCommit: Commit<TNode>): Branch<TNode> => {
+      const parentCommit = commits.find(
+        ({ hash }) => hash === aCommit.parents[0],
+      ) as Commit<TNode>;
+
+      if (!parentCommit) {
+        throw new Error("No parent commit");
+      }
+
+      const parentCommitBranch = this.branches.get(
+        (parentCommit.branches as Array<Branch["name"]>)[0],
+      );
+
+      if (!parentCommitBranch) {
+        return getParentBranch(parentCommit);
+      }
+
+      return parentCommitBranch;
+    };
+
+    if (!branch) {
+      // Branch was deleted.
+      branch = getParentBranch(commit);
+    }
 
     if (branchesPaths.has(branch)) {
       branchesPaths.set(branch, [
